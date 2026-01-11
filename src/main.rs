@@ -1,13 +1,19 @@
+use std::str::FromStr;
+
 use actix_files::NamedFile;
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{
+    App, HttpRequest, HttpServer, Responder, Result, dev::ConnectionInfo, get, http::Uri, web,
+};
 mod containers;
 
 #[get("/api/containers")]
-async fn hello() -> Result<impl Responder> {
+async fn hello(req: HttpRequest) -> Result<impl Responder> {
+    let host = req.full_url();
+    let host = host.host_str().unwrap_or_default();
     Ok(web::Html::new(
         containers::get_container_list()
             .iter()
-            .flat_map(|c| c.to_html_tr().chars().collect::<Vec<char>>())
+            .map(|c| c.to_html_card(host))
             .collect::<String>(),
     ))
 }

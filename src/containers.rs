@@ -7,6 +7,7 @@ pub struct Container {
     ports: std::vec::Vec<PortMapping>,
     name: String,
     image: String,
+    time_running: String,
 }
 
 impl Container {
@@ -19,6 +20,53 @@ impl Container {
             self.id
         )
     }
+
+    pub fn to_html_card(&self, host: &str) -> String {
+        format!(
+            r#"
+<div class="bg-white rounded-lg shadow-md p-6 container-card">
+    <div class="flex justify-between items-start mb-4">
+        <h3 class="text-lg font-semibold text-gray-800">{}</h3>
+        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">Running since {}</span>
+    </div>
+    <div class="mb-4">
+        <p class="text-sm text-gray-600 mb-1"><span class="font-medium">Image:</span> {}</p>
+        <p class="text-sm text-gray-600"><span class="font-medium">ID:</span> {}</p>
+    </div>
+    <div>
+        <p class="text-sm font-medium text-gray-700 mb-2">Ports:</p>
+        {}
+    </div>
+</div>
+"#,
+            self.name,
+            self.time_running,
+            self.image,
+            self.id,
+            port_map_list_to_html_div(&self.ports, host)
+        )
+    }
+}
+
+// Add a new function to format port mappings as divs instead of ul
+pub fn port_map_list_to_html_div(port_maps: &std::vec::Vec<PortMapping>, host: &str) -> String {
+    if port_maps.is_empty() {
+        return "<p class=\"text-sm text-gray-500\">No ports exposed</p>".to_string();
+    }
+
+    format!(
+        "<div class=\"space-y-1\">{}{}</div>",
+        port_maps
+            .iter()
+            .map(|pm| format!(
+                r#"<a href="http://{}:{}"><div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">{}</div></a>"#,
+                host,
+                pm.target_port,
+                pm
+            ))
+            .collect::<String>(),
+        "</div>"
+    )
 }
 
 impl From<&str> for Container {
@@ -36,6 +84,7 @@ impl From<&str> for Container {
             ports: ports_list.into_iter().map(|p| p.into()).collect(),
             name: parts[2].to_string(),
             image: parts[3].to_string(),
+            time_running: parts[4].to_string(),
         }
     }
 }
@@ -129,7 +178,8 @@ pub fn port_map_list_to_html_ul(port_maps: &std::vec::Vec<PortMapping>) -> Strin
 }
 
 const DOCKER_PS_CMD: &str = "docker";
-const DOCKER_PS_ARGS: &str = "ps --format \"{{.ID}};{{.Ports}};{{.Names}};{{.Image}}\"";
+const DOCKER_PS_ARGS: &str =
+    "ps --format \"{{.ID}};{{.Ports}};{{.Names}};{{.Image}};{{.RunningFor}};\"";
 
 pub fn get_container_list() -> std::vec::Vec<Container> {
     let cmd_result = Command::new(DOCKER_PS_CMD)
