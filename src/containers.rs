@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::{fmt::Display, process::Command};
+use std::{collections::HashSet, fmt::Display, path::Path, process::Command};
 
 #[derive(Serialize)]
 pub struct Container {
@@ -93,7 +93,7 @@ impl From<&str> for Container {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub enum Protocol {
     Tcp,
     Udp,
@@ -209,30 +209,80 @@ pub fn port_map_list_to_html_ul(port_maps: &std::vec::Vec<PortMapping>) -> Strin
 }
 
 const DOCKER_PS_CMD: &str = "docker";
-const DOCKER_PS_ARGS: &str =
-    "ps --format \"{{.ID}};{{.Ports}};{{.Names}};{{.Image}};{{.RunningFor}};\"";
+const DOCKER_PS_FORMAT: &str = "{{.ID}};{{.Ports}};{{.Names}};{{.Image}};{{.RunningFor}};";
 
 pub fn get_container_list() -> std::vec::Vec<Container> {
-    let cmd_result = Command::new(DOCKER_PS_CMD)
-        .args(DOCKER_PS_ARGS.split_whitespace())
-        .output();
-    if let Ok(output) = cmd_result {
-        let output_lines = std::string::String::from_utf8(output.stdout);
-        if let Ok(lines) = output_lines {
-            lines
-                .split('\n')
-                .filter_map(|l: &str| {
-                    if l.is_empty() {
-                        return None;
-                    }
-                    Some(Container::from(l))
-                })
-                .collect()
-        } else {
-            println!("Failed to get container list");
-            vec![]
-        }
+    // Sockets to check for multi-socket setups (e.g. root + user Quadlets)
+    let potential_sockets = ["/run/user-podman.sock", "/run/root-podman.sock"];
+    let active_sockets: Vec<&str> = potential_sockets
+        .into_iter()
+        .filter(|sock| Path::new(sock).exists())
+        .collect();
+
+    // If specific multi-sockets exist, query each. Otherwise fall back to the default socket (/var/run/docker.sock).
+    let socket_targets: Vec<Option<&str>> = if !active_sockets.is_empty() {
+        active_sockets.into_iter().map(Some).collect()
     } else {
-        vec![]
+        vec![None]
+    };
+
+    let mut all_containers = Vec::new();
+    let mut seen_ids = HashSet::new();
+
+    for sock in socket_targets {
+        let mut cmd = Command::new(DOCKER_PS_CMD);
+        if let Some(sock_path) = sock {
+            cmd.args(["-H", &format!("unix://{}", sock_path)]);
+        }
+        cmd.args(["ps", "--format", DOCKER_PS_FORMAT]);
+
+        if let Ok(output) = cmd.output() {
+            if let Ok(output_str) = String::from_utf8(output.stdout) {
+                for line in output_str.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    let container = Container::from(trimmed);
+                    if seen_ids.insert(container.id.clone()) {
+                        all_containers.push(container);
+                    }
+                }
+            } else {
+                println!("Failed to parse output for socket {:?}", sock);
+            }
+        } else {
+            println!("Failed to run docker ps for socket {:?}", sock);
+        }
+    }
+
+    all_containers
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_ports() {
+        let test_port = "9090/tcp";
+        let mapped_ports: PortMapping = test_port.into();
+        assert_eq!(mapped_ports.external_port(), 9090);
+        assert_eq!(mapped_ports.protocol, Protocol::Tcp);
+
+        let mapped_full: PortMapping = "0.0.0.0:8080->80/tcp".into();
+        assert_eq!(mapped_full.external_port(), 8080);
+        assert_eq!(mapped_full.target_port, 80);
+        assert_eq!(mapped_full.protocol, Protocol::Tcp);
+    }
+
+    #[test]
+    fn parse_container_with_bare_ports() {
+        let raw = "abc123;9090/tcp;my-service;my-image:latest;2 hours ago;";
+        let container = Container::from(raw);
+        assert_eq!(container.id, "abc123");
+        assert_eq!(container.name, "my-service");
+        assert_eq!(container.ports.len(), 1);
+        assert_eq!(container.ports[0].external_port(), 9090);
     }
 }
