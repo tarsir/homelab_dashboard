@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{println, str::FromStr};
 
 use actix_files::NamedFile;
 use actix_web::{
@@ -24,12 +24,16 @@ async fn dashboard() -> Result<NamedFile> {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let port = std::env::var("PORT").unwrap_or_else(|_| "7001".to_string());
+    let bind_addr = format!("0.0.0.0:{}", port);
+
+    println!("Starting server on {}", bind_addr);
     HttpServer::new(|| {
         App::new()
             .route("/", web::get().to(dashboard))
             .service(hello)
     })
-    .bind(("127.0.0.1", 7001))?
+    .bind(bind_addr)?
     .run()
     .await
 }
