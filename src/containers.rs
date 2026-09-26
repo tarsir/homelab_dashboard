@@ -82,7 +82,7 @@ impl From<&str> for Container {
         } else {
             vec![]
         };
-        println!("{:?}", ports_list);
+        println!("parsed {:?} from string: {}", ports_list, value);
         Container {
             id: parts[0].to_string(),
             ports: ports_list.into_iter().map(|p| p.into()).collect(),
