@@ -61,7 +61,7 @@ pub fn port_map_list_to_html_div(port_maps: &std::vec::Vec<PortMapping>, host: &
             .map(|pm| format!(
                 r#"<a href="http://{}:{}"><div class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded">{}</div></a>"#,
                 host,
-                pm.target_port,
+                pm.external_port(),
                 pm
             ))
             .collect::<String>(),
@@ -73,11 +73,15 @@ impl From<&str> for Container {
     fn from(value: &str) -> Self {
         // id, ports, name, image
         let parts = value.trim_matches('"').split(';').collect::<Vec<&str>>();
-        let ports_list = parts[1]
-            .split(',')
-            .map(|p| p.trim())
-            .filter(|p| p.contains('>'))
-            .collect::<Vec<&str>>();
+        let ports_list = if parts.len() > 1 {
+            parts[1]
+                .split(',')
+                .map(|p| p.trim())
+                .filter(|p| !p.is_empty() && !p.starts_with(":::"))
+                .collect::<Vec<&str>>()
+        } else {
+            vec![]
+        };
         println!("{:?}", ports_list);
         Container {
             id: parts[0].to_string(),
@@ -128,6 +132,14 @@ pub struct PortMapping {
 }
 
 impl PortMapping {
+    pub fn external_port(&self) -> i32 {
+        if self.source_port > 0 {
+            self.source_port
+        } else {
+            self.target_port
+        }
+    }
+
     fn to_html_list_item(&self) -> String {
         format!(
             "<li>{} -> {}, on {} ({})</li>",
@@ -138,31 +150,50 @@ impl PortMapping {
 
 impl Display for PortMapping {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_html_list_item())
+        if self.source_port > 0 && self.source_port != self.target_port {
+            write!(
+                f,
+                "{} -> {} ({})",
+                self.source_port, self.target_port, self.protocol
+            )
+        } else {
+            write!(f, "{} ({})", self.target_port, self.protocol)
+        }
     }
 }
 
 impl From<&str> for PortMapping {
     fn from(value: &str) -> Self {
-        let split_protocol = value.split('/').collect::<Vec<&str>>();
-        let protocol: Protocol = split_protocol[1].into();
-        let split_ip_addr = value.split(':').take(1).next().unwrap();
-        let split_ports: Vec<&str> = value.split(&['/', ':', '>'][..]).skip(1).take(2).collect();
-        println!("{:?}", split_ports);
-        let source_port: i32 = split_ports[0]
-            .trim_matches('-')
-            .parse::<i32>()
-            .unwrap_or(-1);
-        let target_port: i32 = split_ports[1]
-            .trim_matches('-')
-            .parse::<i32>()
-            .unwrap_or(-1);
+        let (mapping_part, protocol_str) = match value.split_once('/') {
+            Some((m, proto)) => (m, proto),
+            None => (value, ""),
+        };
+        let protocol: Protocol = Protocol::from(protocol_str);
 
-        PortMapping {
-            ip_addr: split_ip_addr.to_string(),
-            source_port,
-            target_port,
-            protocol,
+        if let Some((host_part, target_part)) = mapping_part.split_once("->") {
+            let target_port = target_part.parse::<i32>().unwrap_or(-1);
+            let (ip_addr, source_port) = match host_part.rsplit_once(':') {
+                Some((ip, port_str)) => (ip.to_string(), port_str.parse::<i32>().unwrap_or(-1)),
+                None => (
+                    "0.0.0.0".to_string(),
+                    host_part.parse::<i32>().unwrap_or(-1),
+                ),
+            };
+
+            PortMapping {
+                ip_addr,
+                source_port,
+                target_port,
+                protocol,
+            }
+        } else {
+            let target_port = mapping_part.parse::<i32>().unwrap_or(-1);
+            PortMapping {
+                ip_addr: String::new(),
+                source_port: 0,
+                target_port,
+                protocol,
+            }
         }
     }
 }
