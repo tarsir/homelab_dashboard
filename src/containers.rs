@@ -274,6 +274,7 @@ fn get_ports(container_id: String, sock: Option<&str>) -> std::vec::Vec<PortMapp
 
     if let Ok(output) = cmd.output() {
         if let Ok(output_str) = String::from_utf8(output.stdout) {
+            println!("{}", output_str);
             for line in output_str.lines() {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
