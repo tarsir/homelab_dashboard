@@ -1,7 +1,7 @@
 use serde::Serialize;
-use std::{collections::HashSet, fmt::Display, path::Path, process::Command};
+use std::{collections::HashSet, fmt::Display, path::Path, println, process::Command};
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct Container {
     id: String,
     ports: std::vec::Vec<PortMapping>,
@@ -93,7 +93,7 @@ impl From<&str> for Container {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug, Serialize, PartialEq, Clone)]
 pub enum Protocol {
     Tcp,
     Udp,
@@ -123,10 +123,12 @@ impl From<&str> for Protocol {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct PortMapping {
     ip_addr: String,
+    // this is the internal port used inside the container
     source_port: i32,
+    // this is the port used on the host to access the service
     target_port: i32,
     protocol: Protocol,
 }
@@ -210,6 +212,8 @@ pub fn port_map_list_to_html_ul(port_maps: &std::vec::Vec<PortMapping>) -> Strin
 
 const DOCKER_PS_CMD: &str = "docker";
 const DOCKER_PS_FORMAT: &str = "{{.ID}};{{.Ports}};{{.Names}};{{.Image}};{{.RunningFor}};";
+const DOCKER_INSPECT_FORMAT: &str =
+    "{{.ID}};{{json .HostConfig.PortBindings}};{{json .NetworkSettings.Ports}}";
 
 pub fn get_container_list() -> std::vec::Vec<Container> {
     // Sockets to check for multi-socket setups (e.g. root + user Quadlets)
@@ -243,9 +247,10 @@ pub fn get_container_list() -> std::vec::Vec<Container> {
                     if trimmed.is_empty() {
                         continue;
                     }
-                    let container = Container::from(trimmed);
+                    let mut container = Container::from(trimmed);
                     if seen_ids.insert(container.id.clone()) {
-                        all_containers.push(container);
+                        container.ports = get_ports(container.id.clone(), sock);
+                        all_containers.push(container.clone());
                     }
                 }
             } else {
@@ -257,6 +262,59 @@ pub fn get_container_list() -> std::vec::Vec<Container> {
     }
 
     all_containers
+}
+
+fn get_ports(container_id: String, sock: Option<&str>) -> std::vec::Vec<PortMapping> {
+    let mut port_mappings = vec![];
+    let mut cmd = Command::new(DOCKER_PS_CMD);
+    if let Some(sock_path) = sock {
+        cmd.args(["-H", &format!("unix://{}", sock_path)]);
+    }
+    cmd.args(["port", container_id.as_ref()]);
+
+    if let Ok(output) = cmd.output() {
+        if let Ok(output_str) = String::from_utf8(output.stdout) {
+            for line in output_str.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                if let Some((internal_port, exposed_port)) = trimmed.split_once("->") {
+                    let (target_port, protocol) = match internal_port.split_once('/') {
+                        Some((port, protocol)) => (
+                            port.parse::<i32>().unwrap_or(-1),
+                            Protocol::from(protocol.trim()),
+                        ),
+                        None => (0, Protocol::Empty),
+                    };
+                    let (ip_addr, source_port) = match exposed_port.rsplit_once(':') {
+                        Some((ip, port_str)) => {
+                            (ip.to_string(), port_str.parse::<i32>().unwrap_or(-1))
+                        }
+                        None => (
+                            "0.0.0.0".to_string(),
+                            internal_port.parse::<i32>().unwrap_or(-1),
+                        ),
+                    };
+                    if ip_addr.contains("[::]") {
+                        println!("skipping {} for possible IPv6", trimmed);
+                        continue;
+                    }
+                    let mapping = PortMapping {
+                        ip_addr,
+                        source_port,
+                        target_port,
+                        protocol,
+                    };
+                    println!("{} parsed into {}", trimmed, mapping);
+
+                    port_mappings.push(mapping);
+                }
+            }
+        }
+    }
+
+    port_mappings
 }
 
 #[cfg(test)]
