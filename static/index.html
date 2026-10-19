@@ -8,10 +8,10 @@
         <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <style>
             .container-card {
-                transition: all 0.3s ease;
+                transition: all 0.25s ease;
             }
             .container-card:hover {
-                transform: translateY(-4px);
+                transform: translateY(-3px);
             }
             .status-indicator {
                 animation: pulse 2s infinite;
@@ -25,6 +25,79 @@
                 }
                 100% {
                     opacity: 1;
+                }
+            }
+
+            /* Compact List View Mode */
+            #services-container[data-view="list"] .services-items-grid {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+            }
+
+            #services-container[data-view="list"] .service-card {
+                padding: 0.75rem 1rem !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                border-radius: 0.5rem !important;
+                box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05) !important;
+                border: 1px solid #e5e7eb !important;
+                transform: none !important;
+            }
+
+            #services-container[data-view="list"] .service-card:hover {
+                border-color: #a5b4fc !important;
+                box-shadow: 0 2px 4px 0 rgb(0 0 0 / 0.06) !important;
+                transform: translateY(-1px) !important;
+                background-color: #fafafa !important;
+            }
+
+            #services-container[data-view="list"] .service-main {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: baseline !important;
+                gap: 2rem !important;
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+            }
+
+            #services-container[data-view="list"] .service-header {
+                margin-bottom: 0 !important;
+                flex-shrink: 0 !important;
+            }
+
+            #services-container[data-view="list"] .service-name {
+                font-size: 0.9375rem !important;
+                font-weight: 600 !important;
+            }
+
+            #services-container[data-view="list"] .service-desc {
+                margin-bottom: 0 !important;
+                font-size: 0.875rem !important;
+                color: #6b7280 !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                white-space: nowrap !important;
+            }
+
+            #services-container[data-view="list"] .service-url {
+                display: none !important;
+            }
+
+            #services-container[data-view="list"] .service-action {
+                margin-left: 0.75rem !important;
+                flex-shrink: 0 !important;
+            }
+
+            @media (max-width: 640px) {
+                #services-container[data-view="list"] .service-main {
+                    flex-direction: column !important;
+                    align-items: flex-start !important;
+                    gap: 0.15rem !important;
+                }
+                #services-container[data-view="list"] .service-desc {
+                    white-space: normal !important;
                 }
             }
         </style>
@@ -47,7 +120,7 @@
         <main class="container mx-auto px-4 py-8 space-y-12">
             <!-- Web Services Section -->
             <section>
-                <div class="mb-6 flex justify-between items-end">
+                <div class="mb-6 flex flex-wrap justify-between items-center gap-4">
                     <div>
                         <h2 class="text-xl font-semibold text-gray-800 mb-1">
                             Web Services
@@ -56,19 +129,50 @@
                             Direct links to network services and hostnames
                         </p>
                     </div>
-                    <span class="text-xs text-gray-400 font-mono hidden sm:inline">services.toml</span>
+
+                    <div class="flex items-center gap-3">
+                        <!-- View Mode Toggle -->
+                        <div class="inline-flex rounded-lg bg-gray-200 p-0.5 text-gray-600">
+                            <button
+                                id="view-grid-btn"
+                                type="button"
+                                onclick="setServicesView('grid')"
+                                class="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md bg-white text-indigo-700 shadow-sm transition"
+                                title="Card view"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+                                </svg>
+                                <span>Cards</span>
+                            </button>
+                            <button
+                                id="view-list-btn"
+                                type="button"
+                                onclick="setServicesView('list')"
+                                class="flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md text-gray-600 hover:text-gray-900 transition"
+                                title="List view"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                                <span>List</span>
+                            </button>
+                        </div>
+                        <span class="text-xs text-gray-400 font-mono hidden sm:inline">services.toml</span>
+                    </div>
                 </div>
 
                 <div
                     id="services-container"
                     class="space-y-8"
+                    data-view="grid"
                     hx-get="/api/services"
                     hx-trigger="load"
                     hx-swap="innerHTML"
                 >
                     <!-- Loading placeholder -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div class="bg-white rounded-lg shadow-md p-6 container-card">
+                    <div class="services-items-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-lg shadow-md p-6 container-card service-card">
                             <div class="animate-pulse">
                                 <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                                 <div class="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
@@ -109,5 +213,50 @@
                 </div>
             </section>
         </main>
+
+        <script>
+            function setServicesView(view) {
+                const container = document.getElementById('services-container');
+                const gridBtn = document.getElementById('view-grid-btn');
+                const listBtn = document.getElementById('view-list-btn');
+
+                const activeClasses = 'flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md bg-white text-indigo-700 shadow-sm transition';
+                const inactiveClasses = 'flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md text-gray-600 hover:text-gray-900 transition';
+
+                if (container) {
+                    container.setAttribute('data-view', view);
+                }
+
+                if (gridBtn && listBtn) {
+                    if (view === 'list') {
+                        listBtn.className = activeClasses;
+                        gridBtn.className = inactiveClasses;
+                    } else {
+                        gridBtn.className = activeClasses;
+                        listBtn.className = inactiveClasses;
+                    }
+                }
+
+                try {
+                    localStorage.setItem('homelab_services_view', view);
+                } catch (e) {
+                    // Ignore storage errors if disabled
+                }
+            }
+
+            // Apply saved view on page load
+            document.addEventListener('DOMContentLoaded', function () {
+                const saved = localStorage.getItem('homelab_services_view') || 'grid';
+                setServicesView(saved);
+            });
+
+            // Re-apply view after HTMX swaps dynamic content
+            document.body.addEventListener('htmx:afterSwap', function (evt) {
+                if (evt.detail.target && evt.detail.target.id === 'services-container') {
+                    const saved = localStorage.getItem('homelab_services_view') || 'grid';
+                    setServicesView(saved);
+                }
+            });
+        </script>
     </body>
 </html>

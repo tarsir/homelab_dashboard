@@ -64,23 +64,26 @@ pub fn get_services() -> Vec<Service> {
 fn render_card(s: &Service) -> String {
     let desc_html = match &s.description {
         Some(desc) if !desc.trim().is_empty() => {
-            format!(r#"<p class="text-sm text-gray-600 mb-1">{}</p>"#, desc)
+            format!(
+                r#"<p class="service-desc text-sm text-gray-600 mb-1">{}</p>"#,
+                desc
+            )
         }
         _ => String::new(),
     };
 
     format!(
-        r#"<a href="{url}" target="_blank" rel="noopener noreferrer" class="bg-white rounded-lg shadow-md p-3 container-card flex flex-col justify-between group hover:shadow-lg transition">
-    <div>
-        <div class="flex justify-between items-start mb-1 gap-2">
-            <h3 class="text-lg font-semibold text-gray-800 group-hover:text-indigo-600 transition flex items-center gap-1.5">
-                <span>{name}</span>
-                <span class="text-gray-400 group-hover:text-indigo-600 text-sm">&nearr;</span>
+        r#"<a href="{url}" target="_blank" rel="noopener noreferrer" class="service-card bg-white rounded-lg shadow-md p-3 container-card flex flex-col justify-between group hover:shadow-lg transition">
+    <div class="service-main">
+        <div class="service-header flex justify-between items-start mb-1 gap-2">
+            <h3 class="service-name text-lg font-semibold text-gray-800 group-hover:text-indigo-600 transition">
+                {name}
             </h3>
+            <span class="service-action text-gray-400 group-hover:text-indigo-600 text-sm transition">&nearr;</span>
         </div>
         {desc_html}
     </div>
-    <div class="pt-1 border-t border-gray-100">
+    <div class="service-url pt-1 border-t border-gray-100">
         <span class="text-xs font-mono text-indigo-600 hover:underline break-all">{url}</span>
     </div>
 </a>"#,
@@ -110,7 +113,7 @@ pub fn render_services_from_list(services: &[Service]) -> String {
     if !has_explicit_categories {
         let cards = services.iter().map(render_card).collect::<String>();
         return format!(
-            r#"<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{}</div>"#,
+            r#"<div class="services-items-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{}</div>"#,
             cards
         );
     }
@@ -136,12 +139,12 @@ pub fn render_services_from_list(services: &[Service]) -> String {
         .map(|(cat_name, cat_services)| {
             let cards = cat_services.iter().map(|s| render_card(s)).collect::<String>();
             format!(
-                r#"<div class="p-4 rounded-sm space-y-3 bg-indigo-200">
+                r#"<div class="p-4 rounded-sm category-group space-y-3 bg-indigo-200">
     <div class="flex items-center space-x-2 border-b border-gray-200 pb-2">
         <h3 class="text-lg font-semibold text-gray-500 uppercase tracking-wider">{}</h3>
         <span class="bg-indigo-50 text-indigo-700 text-md px-2 py-0.5 rounded-full font-medium">{}</span>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="services-items-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {}
     </div>
 </div>"#,
