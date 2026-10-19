@@ -1,10 +1,8 @@
-use std::{println, str::FromStr};
-
 use actix_files::NamedFile;
-use actix_web::{
-    App, HttpRequest, HttpServer, Responder, Result, dev::ConnectionInfo, get, http::Uri, web,
-};
+use actix_web::{App, HttpRequest, HttpServer, Responder, Result, get, web};
+
 mod containers;
+mod services;
 
 #[get("/api/containers")]
 async fn hello(req: HttpRequest) -> Result<impl Responder> {
@@ -16,6 +14,11 @@ async fn hello(req: HttpRequest) -> Result<impl Responder> {
             .map(|c| c.to_html_card(host))
             .collect::<String>(),
     ))
+}
+
+#[get("/api/services")]
+async fn get_services_endpoint() -> Result<impl Responder> {
+    Ok(web::Html::new(services::render_services_html()))
 }
 
 async fn dashboard() -> Result<NamedFile> {
@@ -32,6 +35,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .route("/", web::get().to(dashboard))
             .service(hello)
+            .service(get_services_endpoint)
     })
     .bind(bind_addr)?
     .run()

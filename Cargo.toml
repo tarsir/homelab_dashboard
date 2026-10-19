@@ -7,3 +7,4 @@ edition = "2024"
 actix-files = "0.6.6"
 actix-web = "4"
 serde = { version = "1.0.219", features = ["derive"]}
+toml = "1.1.8"

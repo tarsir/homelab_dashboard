@@ -1,0 +1,62 @@
+# Manual services / links configuration
+# Services defined here will appear on your homelab dashboard.
+
+[[services]]
+name = "Owncloud"
+url = "https://files.lab.stephenhara.com"
+description = "Owncloud for file storage"
+category = "Storage"
+
+[[services]]
+name = "Immich"
+url = "https://images.lab.stephenhara.com"
+description = "Family photo storage"
+category = "Storage"
+
+[[services]]
+name = "Vikunja"
+url = "http://tasks.lab.stephenhara.com"
+description = "Tasks and to-dos"
+category = "Productivity"
+
+[[services]]
+name = "Linkding"
+url = "http://links.lab.stephenhara.com"
+description = "Bookmark manager"
+category = "Storage"
+
+[[services]]
+name = "Trillium Notes"
+url = "http://notes.lab.stephenhara.com"
+description = "Obsidian-like note app"
+category = "Productivity"
+
+[[services]]
+name = "Pihole"
+url = "http://pihole.lab.stephenhara.com/admin/login"
+description = "PiHole DNS administration"
+category = "Network"
+
+[[services]]
+name = "Mealie"
+url = "http://recipes.lab.stephenhara.com"
+description = "Recipe storage"
+category = "Storage"
+
+[[services]]
+name = "Vaultwarden"
+url = "http://vault.lab.stephenhara.com"
+description = "Password manager"
+category = "Security"
+
+[[services]]
+name = "WriteFlow"
+url = "http://writeflow.lab.stephenhara.com"
+description = "Writing practice in other languages"
+category = "Productivity"
+
+[[services]]
+name = "Forgejo"
+url = "http://code.lab.stephenhara.com"
+description = "Self-hosted Git repositories"
+category = "Storage"
